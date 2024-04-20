@@ -70,7 +70,7 @@ public:
     string m_name = string("undefclassorns");
     vector<Member*> m_memes;
     void SetName(string sName) {
-        m_name = std::regex_replace(sName, std::regex("\W"), "");
+        m_name = std::regex_replace(sName, std::regex("\\W"), "");
     }
     void AddMember(Member* pMember) {
         m_memes.push_back(pMember);
@@ -180,6 +180,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     cout << "\n\n\n\nBROMA FILE PARCED\nNext up is script file gen :D\n\n...MessageBox here\n";
     MessageBox(0, "BROMA FILE PARCED\nNext up is script file gen :D", "geode-bindings-to-ida-script", 0);
     auto OutFileStream = std::ofstream(OutFile.string());
+    string names;
     auto openFunc =  
     "static main()\n"
     "{\n""   auto base = get_imagebase();\n";
@@ -187,9 +188,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     cout << openFunc;
     for (auto Container : Containers) {
         for (auto Member : Container->m_memes) {
+            int namenum = 0;
+            auto name = Container->m_name + Member->m_name;
+            while (names.find(name) != string::npos) {
+                ++namenum;
+                name = name + to_string(namenum);
+            }
+            names = name + (name + ";");
             auto entry = std::format(
-    "   set_name(base + {}, \"{}_{}\");\n",
-                Member->m_addr, Container->m_name, Member->m_name
+                "   set_name(base + {}, \"{}_{}\");\n",
+                Member->m_addr, Container->m_name, Member->m_name + (namenum == 0 ? "" : to_string(namenum))
             );
             OutFileStream << entry;
             cout << entry;

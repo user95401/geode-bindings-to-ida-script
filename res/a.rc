@@ -1,6 +1,6 @@
 1 VERSIONINFO
-FILEVERSION 1, 0, 0, 0
-PRODUCTVERSION 1, 0, 0, 0
+FILEVERSION 1, 1, 0, 0
+PRODUCTVERSION 1, 1, 0, 0
 FILEOS 0x40004
 FILETYPE 0x2
 {
@@ -10,12 +10,12 @@ FILETYPE 0x2
 		{
             VALUE "CompanyName", "user95041"
             VALUE "FileDescription", "convert .bro file from geode-sdk into ida script to set names"
-            VALUE "FileVersion", "1.0.0.0"
+            VALUE "FileVersion", "1.1.0.0"
             VALUE "InternalName", "geode-bindings-to-ida-script"
             VALUE "LegalCopyright", "user666's original"
             VALUE "OriginalFilename", "geode-bindings-to-ida-script.exe"
             VALUE "ProductName", "geode-bindings-to-ida-script"
-            VALUE "ProductVersion", "1.0.0.0"
+            VALUE "ProductVersion", "1.1.0.0"
 		}
 	}
 	BLOCK "VarFileInfo"
