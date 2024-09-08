@@ -6,7 +6,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 project("geode-bindings-to-ida-script")
 
 file(GLOB_RECURSE SRC src/* res/*)
-add_executable(${PROJECT_NAME} ${SRC})
-set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
+add_executable(${PROJECT_NAME} WIN32 ${SRC})
 
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_LIST_DIR}")

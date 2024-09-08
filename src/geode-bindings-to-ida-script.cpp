@@ -3,6 +3,7 @@
 
 #include <Windows.h>
 #include <iostream>
+#include <map>
 #include <format>
 #include <regex>
 #include <filesystem>
@@ -92,7 +93,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     OFN.lStructSize = sizeof(OFN);
     OFN.lpstrFile = szFile;
     OFN.nMaxFile = sizeof(szFile);
-    OFN.lpstrFilter = "Broma file\0*.bro\0\0";
+    OFN.lpstrFilter = 
+        "Broma file\0*.bro" 
+        "\0" 
+        "CodegenData\0CodegenData.txt" 
+        "\0\0";
     OFN.nFilterIndex = 1;
     OFN.lpstrTitle = "Select broma file to convert (GeometryDash.bro):";
     OFN.nMaxFileTitle = 0;
@@ -126,84 +131,118 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     CreateConsole();
     auto TarFileStr = read_file(TarFile.string());
     auto lines = separate(TarFileStr, '\n');
-    Container* currentClass;
-    for (std::string line : lines) {
-        if (line.find("class") != std::string::npos) {
-            std::string classname;
-            for (auto c : line.replace(0, 6, "")) {
-                if (c != ' ') classname.push_back(c);
-                else if (!classname.empty()) break;
-            };
-            cout << "class " << classname << endl;
-            auto thisClass = new Container;
-            thisClass->SetName(classname);
-            currentClass = thisClass;
-            Containers.push_back(thisClass);
-        }
-        else if (currentClass and line.find(") = win 0x") != std::string::npos) {
-            std::string membername(line);
-            {
-                auto asd = separate(membername, ' ');
-                //"       virtual"[0]"void"[1]"FLAlert_Clicked(FLAlertLayer*,"[2]"bool)"[3]"="[4]"win"[5]"0x96ca0;"[6]
-                //"       void"[0]"onBack(cocos2d::CCObject*"[1]"sender)"[2]"="[3]"win"[4]"0x268d00;"[5]
-                //remove type
-                if (asd[0].find("virtual") != std::string::npos or asd[0].find("static") != std::string::npos) {
-                    auto toremove = asd[0] + " " + asd[1];//virt + typename
-                    membername.replace(0, toremove.size(), "");
-                }
-                else {
-                    auto toremove = asd[0];//typename
-                    membername.replace(0, toremove.size(), "");
-                }
-                //no space
-                membername = std::regex_replace(membername, std::regex(" "), "");
-                //remove rest shit
-                if (membername.find("(") != string::npos) membername.replace(membername.find("("), membername.size(), "");
+    if (TarFile.filename() == "CodegenData.txt") {
+        auto OutFileStream = std::ofstream(OutFile.string());
+
+        auto openFunc =
+            "static main()" 
+            "\n""{"
+            "\n""\t""auto base = get_imagebase();";
+        OutFileStream << openFunc; cout << openFunc;
+        std::map<std::string, int> names;
+        for (std::string line : lines) {
+
+            line = std::regex_replace(line, std::regex("\\s"), "");
+
+            auto sep = separate(line, '-');
+
+            auto name = std::regex_replace(sep[0], std::regex("\\W"), "_");
+            if (names.contains(name)) {
+                names[name] = names[name] + 1;
+                name = std::format("{}{}", name, names[name]);
             }
-            std::string addr(line);
-            {
-                addr;
-                //no space
-                addr = std::regex_replace(addr, std::regex(" "), "");
-                //remove rest shit
-                if (addr.find(")=win") != string::npos) addr.replace(0, addr.find(")=win") + 5, "");
-                //remove ";" and comments
-                if (addr.find(";") != string::npos) addr.replace(addr.find(";"), addr.size(), "");
-            }
-            cout << membername << " = " << "\"" << addr << "\"" << endl;
-            auto member = new Member;
-            member->SetName(membername);
-            member->SetAddr(addr);
-            currentClass->AddMember(member);
+            else names[name] == 0;
+
+            auto addr = std::regex_replace(sep[1], std::regex("\\W"), "");
+            
+            auto newl = std::format("\n""\t""set_name(base + {}, \"{}\");", addr, name);
+
+            OutFileStream << newl; cout << newl;
         }
-    };
-    cout << "\n\n\n\nBROMA FILE PARCED\nNext up is script file gen :D\n\n...MessageBox here\n";
-    MessageBox(0, "BROMA FILE PARCED\nNext up is script file gen :D", "geode-bindings-to-ida-script", 0);
-    auto OutFileStream = std::ofstream(OutFile.string());
-    string names;
-    auto openFunc =  
-    "static main()\n"
-    "{\n""   auto base = get_imagebase();\n";
-    OutFileStream << openFunc;
-    cout << openFunc;
-    for (auto Container : Containers) {
-        for (auto Member : Container->m_memes) {
-            int namenum = 0;
-            auto name = Container->m_name + Member->m_name;
-            while (names.find(name) != string::npos) {
-                ++namenum;
-                name = name + to_string(namenum);
-            }
-            names = name + (name + ";");
-            auto entry = std::format(
-                "   set_name(base + {}, \"{}_{}\");\n",
-                Member->m_addr, Container->m_name, Member->m_name + (namenum == 0 ? "" : to_string(namenum))
-            );
-            OutFileStream << entry;
-            cout << entry;
-        }
+        auto closeFunc = "\n}";
+        OutFileStream << closeFunc; cout << closeFunc;
+
     }
-    OutFileStream << "}";
-    cout << "}";
+    if (TarFile.extension() == ".bro") {
+        Container* currentClass;
+        for (std::string line : lines) {
+            if (line.find("class") != std::string::npos) {
+                std::string classname;
+                for (auto c : line.replace(0, 6, "")) {
+                    if (c != ' ') classname.push_back(c);
+                    else if (!classname.empty()) break;
+                };
+                cout << "class " << classname << endl;
+                auto thisClass = new Container;
+                thisClass->SetName(classname);
+                currentClass = thisClass;
+                Containers.push_back(thisClass);
+            }
+            else if (currentClass and line.find(") = win 0x") != std::string::npos) {
+                std::string membername(line);
+                {
+                    auto asd = separate(membername, ' ');
+                    //"       virtual"[0]"void"[1]"FLAlert_Clicked(FLAlertLayer*,"[2]"bool)"[3]"="[4]"win"[5]"0x96ca0;"[6]
+                    //"       void"[0]"onBack(cocos2d::CCObject*"[1]"sender)"[2]"="[3]"win"[4]"0x268d00;"[5]
+                    //remove type
+                    if (asd[0].find("virtual") != std::string::npos or asd[0].find("static") != std::string::npos) {
+                        auto toremove = asd[0] + " " + asd[1];//virt + typename
+                        membername.replace(0, toremove.size(), "");
+                    }
+                    else {
+                        auto toremove = asd[0];//typename
+                        membername.replace(0, toremove.size(), "");
+                    }
+                    //no space
+                    membername = std::regex_replace(membername, std::regex(" "), "");
+                    //remove rest shit
+                    if (membername.find("(") != string::npos) membername.replace(membername.find("("), membername.size(), "");
+                }
+                std::string addr(line);
+                {
+                    addr;
+                    //no space
+                    addr = std::regex_replace(addr, std::regex(" "), "");
+                    //remove rest shit
+                    if (addr.find(")=win") != string::npos) addr.replace(0, addr.find(")=win") + 5, "");
+                    //remove ";" and comments
+                    if (addr.find(";") != string::npos) addr.replace(addr.find(";"), addr.size(), "");
+                }
+                cout << membername << " = " << "\"" << addr << "\"" << endl;
+                auto member = new Member;
+                member->SetName(membername);
+                member->SetAddr(addr);
+                currentClass->AddMember(member);
+            }
+        };
+        cout << "\n\n\n\nBROMA FILE PARCED\nNext up is script file gen :D\n\n...MessageBox here\n";
+        MessageBox(0, "BROMA FILE PARCED\nNext up is script file gen :D", "geode-bindings-to-ida-script", 0);
+        auto OutFileStream = std::ofstream(OutFile.string());
+        string names;
+        auto openFunc =
+            "static main()\n"
+            "{\n""   auto base = get_imagebase();\n";
+        OutFileStream << openFunc;
+        cout << openFunc;
+        for (auto Container : Containers) {
+            for (auto Member : Container->m_memes) {
+                int namenum = 0;
+                auto name = Container->m_name + Member->m_name;
+                while (names.find(name) != string::npos) {
+                    ++namenum;
+                    name = name + to_string(namenum);
+                }
+                names = name + (name + ";");
+                auto entry = std::format(
+                    "   set_name(base + {}, \"{}_{}\");\n",
+                    Member->m_addr, Container->m_name, Member->m_name + (namenum == 0 ? "" : to_string(namenum))
+                );
+                OutFileStream << entry;
+                cout << entry;
+            }
+        }
+        OutFileStream << "}";
+        cout << "}";
+    };
     return MessageBox(0, "DONE", "geode-bindings-to-ida-script", 0);
 }
